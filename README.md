@@ -244,7 +244,7 @@ The following is a from the `config.json` file you will find in this repository.
 
 * `name` is a textual description for the plugin which is used in error reporting.
 * `path` provides the location of the plugin js file.  It uses `require` so you can either specify a .js filename or a directory with a file in it labeled index.js.
-* `match` is the regex expression for what the url will be matched against to determine if the function is to be called.   I find (regextester)[https://www.regextester.com/] handy for helping determine if I have it all right.
+* `match` is the regex expression for what the url will be matched against to determine if the function is to be called.   I find [regextester](https://www.regextester.com/) handy for helping determine if I have it all right.
 * `method` specifies which http method the route applies, such as GET, POST, DELETE, etc.
 * `callback` is the name of the function in the plugin module that is to be called.  The callback function will be passed a params object (merge parameters from the url and from he config file) as well as a payload (body of the request).
 
@@ -264,7 +264,7 @@ Let me know if you have any others
 
 ## Credits
 
-### Open Source software used in NodeHookR
+### OpenSource software used in NodeHookR
 * [Winston](https://github.com/winstonjs/winston) is a fantastic logger module which allows you to configure multiple transports and formats for all types of logging.
 * [Http-Shutdown](https://github.com/thedillonb/http-shutdown) provides a graceful shutdown to a node server rather than a forced close.
 
