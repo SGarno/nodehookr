@@ -44,18 +44,18 @@ All you need to do are three things:
 
 ### Plugin js file (i.e. plugins/myPlugin.js)
 
-```javascript
-  // myPlugin.js
-  var plugin = {
-    init: (config,logger) => {}
-    myFunc: (params,payload) => {
-      `... code here ...`
-    }
+``` javascript
+// myPlugin.js
+var plugin = {
+  init: (config,logger) => {}
+  myFunc: (params,payload) => {
+    `... code here ...`
+  }
 ```
 
 ### Config file (config.json)
 
-```json
+``` json
 {
   "port": 8080,
   "plugins": [
@@ -74,7 +74,7 @@ All you need to do are three things:
 ```
 ### Starting application (i.e. app.js or index.js)
 
-```javascript
+``` javascript
   // app.js
   var server = require('NodeHookR');
   server.start();
@@ -96,7 +96,7 @@ That's it!
 A plugin is a simple nodejs module that exports an `init()` function and any function that you want the router to have access to.   Below is a sample of a plugin for NodeHookR
 
 
-```javascript
+``` javascript
 var sample = {
   init: function(config, logger) {
     sample._config = config;  // Save the configuration for later use
@@ -147,7 +147,7 @@ The config file uses a standard JSON format and will look for the following prop
 
 Any other properties in the config file will be ignored and can be used by your plugin(s) for startup information.   The format for the config file should look something along the lines of:
 
-```json
+``` json
 {
   "port":  "####",
   "log": {
@@ -183,18 +183,18 @@ You can control the filenames and locations for these log files, but if the opti
 
 Where `name` is one of the above log names.   You can override how logging is processed by providing logging options in the config file using the format:
 
-```json
+``` json
   "log": {
-    "requests": { options },
-    "service": { options },
-    "router": { options },
-    "plugins": { options }
+    "requests": { // options // },
+    "service": { // options // },
+    "router": { // options // },
+    "plugins": { // options // }
   }
 ```
 
 The standard definition for a log entry options is as follows:
 
-```json
+``` json
 {
   "enabled": false,
   "path": "",
@@ -220,25 +220,25 @@ For example, `/myroute` can go to two different functions, one for POST and one 
 The following is a from the `config.json` file you will find in this repository.
 
 ``` json
-		{
-			"name": "sample",
-			"path": "./plugins/sample.js",
-			"routes": [
-				{ "match": "{regex ", "method": "POST", "callback": "myFunction2" },
-				{
-					"match": "/(((Test)*Route/1)|(Route/1/Test))$",
-					"method": "GET",
-					"callback": "myFunction1",
-					"params": { "configParam": "Config from Route #1" }
-				},
-				{
-					"match": "/(((Test)*Route/2)|(Route/2/Test))$",
-					"method": "GET",
-					"callback": "myFunction1",
-					"params": { "configParam": "Config From Route #2" }
-				}
-			]
-		}
+    {
+      "name": "sample",
+      "path": "./plugins/sample.js",
+      "routes": [
+        { "match": "{regex ", "method": "POST", "callback": "myFunction2" },
+        {
+          "match": "/(((Test)*Route/1)|(Route/1/Test))$",
+          "method": "GET",
+          "callback": "myFunction1",
+          "params": { "configParam": "Config from Route #1" }
+        },
+        {
+          "match": "/(((Test)*Route/2)|(Route/2/Test))$",
+          "method": "GET",
+          "callback": "myFunction1",
+          "params": { "configParam": "Config From Route #2" }
+        }
+      ]
+    }
   ]
 ```
 
@@ -274,7 +274,7 @@ Let me know if you have any others
 * [chai](https://www.chaijs.com/) assertion library for evaluating the test cases.
 * [istanbul](https://istanbul.js.org/) is an excellent package for managing test case code coverage.
 * [sinon](https://sinonjs.org/) allows for stubs and spies to be used in the test cases for NodeHookR.
-* [proxyquire](https://github.com/thlorenz/proxyquire)) enables stubbing out 'require'd modules for getting at those difficult test cases on dependent libraries.
+* [proxyquire](https://github.com/thlorenz/proxyquire) enables stubbing out 'require'd modules for getting at those difficult test cases on dependent libraries.
 
 ### Big thank you to everyone who put together these fine open source packages!
 
