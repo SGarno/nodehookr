@@ -15,7 +15,6 @@ const stubs = {
 	good_plugin: stub_path + 'plugins/good-plugin.js',
 	bad_init: stub_path + 'plugins/bad-init.js',
 	config_valid: stub_path + 'configs/test_config.json',
-	config_not_exists: stub_path + 'configs/not_exist.json',
 	config_invalid: stub_path + 'configs/invalid_config.json'
 };
 
@@ -25,12 +24,6 @@ describe('Configuration', function() {
 			var results = server.config();
 			assert(results.default);
 		});
-
-	it('Should throw error if config file is not found', function() {
-		server._configFile = stubs.config_not_exists;
-		delete server._config;
-		assert.throws(server.config, Error, /Configuration file .* not found/);
-	});
 
 	it('Should throw error message if config file is invalid', function() {
 		server._configFile = stubs.config_invalid;

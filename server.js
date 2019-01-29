@@ -23,13 +23,15 @@ var server = {
 	// Load configuration
 	// -----------------------------------------------------
 	config: function() {
-		// Only read the config file once.
+		// Only read the config file once, but allow the config
+		// file to be re-loaded at a later time (i.e. file watch)
+		// at some future release.
 		if (!server._config) {
-			// If we can't find the specified path, then just use cwd
-			if (!fs.existsSync(server._configFile))
-				throw new Error('Configuration file [' + server._configFile + '] not found');
-
-			server._config = JSON.parse(fs.readFileSync(server._configFile));
+			if (fs.existsSync(server._configFile)) {
+				server._config = JSON.parse(fs.readFileSync(server._configFile));
+			} else {
+				server._config = { log: [] };
+			}
 		}
 		return server._config;
 	},
@@ -75,12 +77,6 @@ var server = {
 					res.setHeader('Access-Control-Request-Method', '*');
 					res.setHeader('Access-Control-Allow-Methods', 'OPTIONS, GET, POST, PUT, PATCH, DELETE');
 					res.setHeader('Access-Control-Allow-Headers', '*');
-
-					if (req.method === 'OPTIONS') {
-						res.writeHead(200);
-						res.end();
-						return;
-					}
 
 					try {
 						server.handleRequest(req, res);
@@ -210,27 +206,13 @@ var server = {
 			return server.handleError(405, 'Specified route does not support ' + request.method, request, response);
 		}
 
-		var payload;
-
-		// Route the GET requests
-		if (request.method === 'GET') {
-			try {
-				var params = url.parse(request.url, true).query;
-				server.writeResponse(response, router.exec(request.method, path, params, payload));
-			} catch (e) {
-				return server.handleError(500, 'Error occured during ' + path + ' request', request, response, e);
-			}
-
-			// Get the payload data and route the POST request
-		} else if (request.method === 'POST') {
-			server.handlePost(request, response);
-		}
+		server.processRequest(request, response);
 	},
 
 	// -----------------------------------------------------
-	// Process POST request data
+	// Process request data
 	// -----------------------------------------------------
-	handlePost: function(request, response) {
+	processRequest: function(request, response) {
 		var queryData = '';
 
 		request.on('data', function(data) {
@@ -305,13 +287,18 @@ var server = {
 		if (!!opts) {
 			const filename = path + '/' + (opts.prefix || logprefix + '_') + '%DATE%.log';
 			transports.push(
-				new winston.transports.DailyRotateFile({
-					filename: filename,
-					datePattern: 'YYYY-MM-DD-HH',
-					zippedArchive: true,
-					maxSize: opts.maxSize || '20m',
-					maxFiles: opts.maxFiles || '14d'
-				})
+				new winston.transports.DailyRotateFile(
+					Object.assign(
+						{
+							filename: filename,
+							datePattern: 'YYYY-MM-DD-HH',
+							zippedArchive: true,
+							maxSize: opts.maxSize || '20m',
+							maxFiles: opts.maxFiles || '14d'
+						},
+						opts
+					)
+				)
 			);
 		}
 

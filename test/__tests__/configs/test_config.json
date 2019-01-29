@@ -4,8 +4,8 @@
 	"port": "3820",
 
 	"log": {
-		"requests": { "enabled": true, "console": true, "path": "./test/__tests__/logs" },
-		"service": { "enabled": true, "console": true, "path": "./test/__tests__/logs" },
+		"requests": { "enabled": true, "console": false, "path": "./test/__tests__/logs" },
+		"service": { "enabled": true, "console": false, "path": "./test/__tests__/logs" },
 		"router": { "enabled": true, "path": "./test/__tests__/logs" },
 		"plugins": { "eabled": true, "path": "./test/__tests__/logs" }
 	},

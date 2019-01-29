@@ -6,7 +6,7 @@
 		"requests": { "enabled": false },
 		"service": { "enabled": false },
 		"router": { "enabled": true },
-		"plugins": { "eabled": true }
+		"plugins": { "enabled": true }
 	},
 
 	"plugins": [

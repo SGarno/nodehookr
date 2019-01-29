@@ -1,5 +1,5 @@
 {
-	"name": "NodeHookR",
+	"name": "nodehookr",
 	"version": "1.0.0",
 	"description": "Node webhook server",
 	"main": "server.js",
@@ -10,13 +10,9 @@
 	"author": "CarpeDatum Consulting, Inc.",
 	"license": "ISC",
 	"dependencies": {
-		"crypto": "^1.0.1",
 		"http-shutdown": "^1.2.0",
-		"jsforce": "^1.9.1",
-		"nodemailer": "^5.1.1",
 		"winston": "^3.2.0",
-		"winston-daily-rotate-file": "^3.6.0",
-		"xml2js": "^0.4.19"
+		"winston-daily-rotate-file": "^3.6.0"
 	},
 	"devDependencies": {
 		"chai": "^4.2.0",
