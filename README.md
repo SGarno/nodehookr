@@ -50,23 +50,23 @@ var plugin = {
   init: (config,logger) => {}
   myFunc: (params,payload) => {
     `... code here ...`
-  }
+}
 ```
 
 ### Config file (config.json)
 
-``` json
+``` javascript
 {
   "port": 8080,
   "plugins": [
     {
-      "name": "{name of your plugin}",
-      "path": "{path to your .js file}",
-      "routes": [
-        { "match": "{regex route pattern}", 
-          "method": "{POST|GET|DELETE|...}", 
-          "callback": "{function name}", 
-          "params": { } }
+      "name": "",           // Name of your plugin
+      "path": "",           // Path to your .js file
+      "routes": [           // Array of routes for plugin
+        { "match": "",      // RegEx route pattern
+          "method": "",     // POST, GET, DELETE, etc.
+          "callback": "",   // Function name
+          "params": { } }   // Parameters to pass to plugin
       ]
     }
   ]
@@ -147,16 +147,16 @@ The config file uses a standard JSON format and will look for the following prop
 
 Any other properties in the config file will be ignored and can be used by your plugin(s) for startup information.   The format for the config file should look something along the lines of:
 
-``` json
+``` javascript
 {
-  "port":  "####",
+  "port":  "",        // Port number of listener service
   "log": {
-    "service": {},
-    "router": {},
-    "plugins": {},
-    "requests": {}
+    "service": {},    // Service log configuration
+    "router": {},     // Router log configuration
+    "plugins": {},    // Plugin log configuration
+    "requests": {}    // HTTP request log configuration
   },
-  "plugins": []
+  "plugins": []       // List of plugins to install for routing
 }
 ```
 
@@ -183,23 +183,23 @@ You can control the filenames and locations for these log files, but if the opti
 
 Where `name` is one of the above log names.   You can override how logging is processed by providing logging options in the config file using the format:
 
-``` json
+``` javascript
   "log": {
-    "requests": { // options // },
-    "service": { // options // },
-    "router": { // options // },
-    "plugins": { // options // }
+    "requests": {},    // Logging options for HTTP requests
+    "service": {},     // Logging options for NodeHookR service
+    "router": {},      // Logging options for router
+    "plugins": {},     // Logging options for plugins
   }
 ```
 
 The standard definition for a log entry options is as follows:
 
-``` json
+``` javascript
 {
-  "enabled": false,
-  "path": "",
-  "prefix": "",
-  "console": false
+  "enabled": false,     // Enable/disable logging
+  "path": "",           // Directory to place log files
+  "prefix": "",         // Log name prefix (defaults to log entry)
+  "console": false      // Enable/disable console logging
 }
 ```
 
