@@ -1,13 +1,13 @@
 ---
 name: Bug report
 about: Create a report to help us improve
-title: "[Bug] "
+title: ''
 labels: ''
 assignees: ''
 
 ---
 
-**Bug Description**
+**Describe the bug**
 A clear and concise description of what the bug is.
 
 **Steps To Reproduce**
@@ -22,6 +22,9 @@ A clear and concise description of what you expected to happen.
 
 **Screenshots**
 If applicable, add screenshots to help explain your problem.
+
+**Are you willing to work on this issue?**
+Reply 'yes' if you are willing to make the code change and submit a pull request.
 
 **Additional context**
 Add any other context about the problem here.
