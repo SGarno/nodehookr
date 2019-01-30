@@ -257,7 +257,8 @@ Hope you find NodeHookR useful!    Let me know if you have any bugs or suggestio
 There are a few things that are on my TODO list, and will be implemented as soon as I am able.
 
 * HTTPS support
-* 100% code coverage on tests
+* Add ability disable reporting of errors
+* Enable custom error reporting page
 
 Let me know if you have any others 
 

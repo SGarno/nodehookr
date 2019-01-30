@@ -48,7 +48,7 @@ var server = {
 		for (let [ log, opts ] of Object.entries(server.config().log)) {
 			try {
 				// Only initialize valid logger entries
-				if (log.match(/^(service|router|plugin|requests)$/)) {
+				if (log.match(/^(service|router|plugins|requests)$/)) {
 					if (opts.enabled === undefined || opts.enabled)
 						server._loggers[log] = server.createLogger(log, opts);
 				}
@@ -109,7 +109,7 @@ var server = {
 		server._log('router', severity, message, data);
 	},
 	_pluginlog: function(severity, message, data) {
-		server._log('plugin', severity, message, data);
+		server._log('plugins', severity, message, data);
 	},
 
 	_log: function(logname, severity, message, data) {
@@ -167,10 +167,10 @@ var server = {
 
 		if (!!err) {
 			response.write('<h2>');
-			response.write(err.message);
+			response.write(err.message || msg);
 			response.write('</h2>');
 			response.write('<pre>');
-			response.write(err.stack);
+			response.write(err.stack || '');
 			response.write('</pre>');
 		}
 
@@ -240,7 +240,13 @@ var server = {
 
 				server.writeResponse(response, router.exec(request.method, url_parts.pathname, params, payload));
 			} catch (e) {
-				return server.handleError(500, 'Error occured while processing POST request', request, response, e);
+				return server.handleError(
+					500,
+					'Error occured while processing ' + request.method + ' request for ' + url_parts.pathname,
+					request,
+					response,
+					e
+				);
 			}
 		});
 	},
