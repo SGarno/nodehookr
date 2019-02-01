@@ -1,15 +1,16 @@
-var plugin = {
-	init: function(config, logger) {
-		plugin._config = config;
-		plugin._logger = logger;
-		return plugin;
-	},
+class Plugin {
+	constructor(nodehookr) {
+		this._config = nodehookr.config;
+		this._logger = nodehookr.logger;
+	}
 
-	fnString: function(params, payload) {
+	fnString(params, payload) {
 		return 'returning a string';
-	},
+	}
 
-	propString: 'String property'
-};
+	get propString() {
+		return 'String property';
+	}
+}
 
-module.exports = plugin;
+module.exports = Plugin;

@@ -6,72 +6,96 @@
 // request comes in, it matches it with a route and if it passes, then
 // executes the route.
 // ============================================================================
-var fs = require('fs');
-var winston = require('winston');
-var http = require('http');
-var url = require('url');
-var router = require('./router');
+const fs = require('fs');
+const winston = require('winston');
+const http = require('http');
+const url = require('url');
+const Router = require('./router');
+const Mailer = require('./mailer');
+const autobind = require('auto-bind');
+
 require('winston-daily-rotate-file');
 require('http-shutdown').extend();
 
-var server = {
-	// Set default values
-	_configFile: './config.json',
-	_loggers: [],
+class Server {
+	constructor() {
+		// Set default values
+		this._configFile = './config.json';
+		this._loggers = [];
+
+		autobind(this);
+	}
 
 	// -----------------------------------------------------
-	// Load configuration
+	// Return configuration
 	// -----------------------------------------------------
-	config: function() {
+	get config() {
 		// Only read the config file once, but allow the config
 		// file to be re-loaded at a later time (i.e. file watch)
 		// at some future release.
-		if (!server._config) {
-			if (fs.existsSync(server._configFile)) {
-				server._config = JSON.parse(fs.readFileSync(server._configFile));
+		if (!this._configData) {
+			if (fs.existsSync(this._configFile)) {
+				let content = fs.readFileSync(this._configFile);
+				this._configData = JSON.parse(content);
 			} else {
-				server._config = { log: [] };
+				this._configData = { log: [] };
 			}
 		}
-		return server._config;
-	},
+		return this._configData;
+	}
 
 	// -----------------------------------------------------
 	// START Server
 	// -----------------------------------------------------
-	start: function(config) {
+	start(file) {
 		// Set the config file if specified, otherwise, use the default
 		// It is done this way because later config() will be hot loaded
-		if (!!config) server._configFile = config;
+		this._configFile = file || './config.json';
 
 		// Initialize loggers
-		for (let [ log, opts ] of Object.entries(server.config().log)) {
+		for (let [ log, opts ] of Object.entries(this.config.log)) {
 			try {
 				// Only initialize valid logger entries
 				if (log.match(/^(service|router|plugins|requests)$/)) {
-					if (opts.enabled === undefined || opts.enabled)
-						server._loggers[log] = server.createLogger(log, opts);
+					if (opts.enabled === undefined || opts.enabled) this._loggers[log] = this._createLogger(log, opts);
 				}
 			} catch (e) {}
 		}
 
+		// Set up the callbacks for the plugins
+		this._hooks = {
+			config: this.config,
+			sendmail: this._sendmail.bind(this),
+			logger: this._pluginlog.bind(this)
+		};
+
 		// Initialize the router any errors will quit the service
 		try {
-			server.router = router.createRouter(server.config(), server._routerlog, server._pluginlog);
+			this._router = new Router(this._hooks, this._routerlog);
 		} catch (e) {
-			let err = new Error('Error occured during router intialization');
-			server._servicelog('error', err.message, e);
+			const err = new Error('Error occured during router intialization');
+			this._servicelog('error', err.message, e);
 			err.original = e;
 			err.stack = e.stack.split('\n').slice(0, 2).join('\n') + '\n' + e.stack;
 			throw err;
 		}
 
+		// Initialize the mailer
 		try {
-			var port = server.config().port || '3000';
+			this.mailer = new Mailer(this._hooks, this._mailerlog);
+		} catch (e) {
+			const err = new Error('Error occured during mailer intialization');
+			this._servicelog('error', err.message, e);
+			err.original = e;
+			err.stack = e.stack.split('\n').slice(0, 2).join('\n') + '\n' + e.stack;
+			throw err;
+		}
 
+		const port = this.config.port || '3000';
+		try {
 			// Initialize the http server
-			server._server = http
-				.createServer(function(req, res) {
+			this._server = http
+				.createServer((req, res) => {
 					// Set CORS headers
 					res.setHeader('Access-Control-Allow-Origin', '*');
 					res.setHeader('Access-Control-Request-Method', '*');
@@ -79,48 +103,66 @@ var server = {
 					res.setHeader('Access-Control-Allow-Headers', '*');
 
 					try {
-						server.handleRequest(req, res);
+						this._handleRequest(req, res);
 					} catch (e) {
-						server.handleError(503, 'Unexpected error occured handling request', req, res, e);
+						this._handleError(503, 'Unexpected error occured handling request', req, res, e);
 					}
 				})
 				.listen(port)
 				.withShutdown();
 		} catch (e) {
-			server._servicelog('Error', 'Error during server startup', e);
-			return server;
+			this._servicelog('Error', 'Error during server startup', e);
+			return this;
 		}
 		console.log('Server running on port ' + port);
-		server._servicelog('Server running on port ' + port);
+		this._servicelog('Server running on port ' + port);
 
-		return server;
-	},
+		return this;
+	}
+
+	// -----------------------------------------------------
+	// Shutdown server
+	// -----------------------------------------------------
+	shutdown() {
+		this._servicelog('info', 'Server shutting down...');
+		if (!this._server) return;
+		this._server.shutdown(() => {
+			this._servicelog('info', 'Server shutdown complete.');
+		});
+
+		return this;
+	}
+
+	// -----------------------------------------------------
+	// Sendmail
+	// -----------------------------------------------------
+	_sendmail(opts) {
+		mailer.send(opts);
+	}
 
 	// -----------------------------------------------------
 	// Log handlers
 	// -----------------------------------------------------
-	_servicelog: function(severity, message, data) {
-		server._log('service', severity, message, data);
-	},
-	_requestslog: function(severity, message, data) {
-		server._log('requests', severity, message, data);
-	},
-	_routerlog: function(severity, message, data) {
-		server._log('router', severity, message, data);
-	},
-	_pluginlog: function(severity, message, data) {
-		server._log('plugins', severity, message, data);
-	},
+	_servicelog(severity, message, data) {
+		this._log('service', severity, message, data);
+	}
+	_requestslog(severity, message, data) {
+		this._log('requests', severity, message, data);
+	}
+	_routerlog(severity, message, data) {
+		this._log('router', severity, message, data);
+	}
+	_pluginlog(severity, message, data) {
+		this._log('plugins', severity, message, data);
+	}
 
-	_log: function(logname, severity, message, data) {
-		var logger;
-
+	_log(logname, severity, message, data) {
 		if (!logname) return;
 
-		var logger = server._loggers[logname];
+		const logger = this._loggers[logname];
 		if (!logger) return;
 
-		var sev = 'info';
+		let sev = 'info';
 		if (!!severity) sev = severity.toLowerCase();
 
 		switch (sev) {
@@ -134,30 +176,19 @@ var server = {
 				logger.info(message, data);
 				break;
 		}
-	},
-
-	// -----------------------------------------------------
-	// Shutdown server
-	// -----------------------------------------------------
-	shutdown: function() {
-		server._servicelog('info', 'Server shutting down...');
-		if (!server._server) return;
-		server._server.shutdown(function() {
-			server._servicelog('info', 'Server shutdown complete.');
-		});
-	},
+	}
 
 	// -----------------------------------------------------
 	// Handle errors
 	// -----------------------------------------------------
-	handleError: function(code, msg, request, response, err) {
-		var url_parts = url.parse(request.url, true);
-		var payload = '';
+	_handleError(code, msg, request, response, err) {
+		const url_parts = url.parse(request.url, true);
+		let payload = '';
 
 		if (!!request.post) payload = request.post.Value;
 
-		server._requestslog('warn', msg, { error: err, client: url_parts, payload: payload });
-		server._servicelog('error', msg, { error: err, client: url_parts });
+		this._requestslog('warn', msg, { error: err, client: url_parts, payload: payload });
+		this._servicelog('error', msg, { error: err, client: url_parts });
 
 		response.writeHead(code, { 'Content-Type': 'text/html' });
 
@@ -177,18 +208,18 @@ var server = {
 		response.end();
 
 		//mail.sendError('Warning', msg, { error: err, client: url_parts, payload: payload });
-	},
+	}
 
 	// -----------------------------------------------------
 	// Handle http requests
 	// -----------------------------------------------------
-	handleRequest: function(request, response) {
+	_handleRequest(request, response) {
 		// Split out the URL
-		var url_parts = url.parse(request.url, true);
+		const url_parts = url.parse(request.url, true);
 
-		server._requestslog('info', 'HTTP Request', { client: url_parts });
+		this._requestslog('info', 'HTTP Request', { client: url_parts });
 
-		var path = url_parts.pathname;
+		const path = url_parts.pathname;
 
 		if (path === '/favicon.ico') {
 			response.writeHead(204, { 'Content-Type': 'text/plain' });
@@ -197,25 +228,25 @@ var server = {
 		}
 
 		// If we didn't find a matching route, return an error
-		if (!router.exists(path)) {
-			return server.handleError(422, 'Invalid or no route supplied', request, response);
+		if (!this._router.exists(path)) {
+			return this._handleError(422, 'Invalid or no route supplied', request, response);
 		}
 
 		// If the route doesn't match the type, then return an error
-		if (!router.matches(request.method, path)) {
-			return server.handleError(405, 'Specified route does not support ' + request.method, request, response);
+		if (!this._router.matches(request.method, path)) {
+			return this._handleError(405, 'Specified route does not support ' + request.method, request, response);
 		}
 
-		server.processRequest(request, response);
-	},
+		this._processRequest(request, response);
+	}
 
 	// -----------------------------------------------------
 	// Process request data
 	// -----------------------------------------------------
-	processRequest: function(request, response) {
-		var queryData = '';
+	_processRequest(request, response) {
+		let queryData = '';
 
-		request.on('data', function(data) {
+		request.on('data', (data) => {
 			queryData += data;
 			if (queryData.length > 1e6) {
 				queryData = '';
@@ -224,23 +255,23 @@ var server = {
 			}
 		});
 
-		request.on('end', function() {
-			var payload = '';
-			if (server.isJSON(queryData)) payload = JSON.parse(queryData);
+		request.on('end', () => {
+			let payload = '';
+			if (this._isJSON(queryData)) payload = JSON.parse(queryData);
 			else payload = queryData;
 
+			const url_parts = url.parse(request.url, true);
 			try {
-				var url_parts = url.parse(request.url, true);
-				var params = url_parts.query;
+				const params = url_parts.query;
 
-				payload.remoteAddress = request.connection.remoteAddress;
-				payload.remoteHost = request.headers.host;
-				payload.remoteOrigin = request.headers.origin;
-				payload.remoteUserAgent = request.headers['user-agent'];
+				response.remoteAddress = request.connection.remoteAddress;
+				response.remoteHost = request.headers.host;
+				response.remoteOrigin = request.headers.origin;
+				response.remoteUserAgent = request.headers['user-agent'];
 
-				server.writeResponse(response, router.exec(request.method, url_parts.pathname, params, payload));
+				this._writeResponse(response, this._router.exec(request.method, url_parts.pathname, params, payload));
 			} catch (e) {
-				return server.handleError(
+				return this._handleError(
 					500,
 					'Error occured while processing ' + request.method + ' request for ' + url_parts.pathname,
 					request,
@@ -249,18 +280,18 @@ var server = {
 				);
 			}
 		});
-	},
+	}
 
-	isJSON: function(str) {
+	_isJSON(str) {
 		try {
-			var json = JSON.parse(str);
+			const json = JSON.parse(str);
 			return typeof json === 'object';
 		} catch (e) {
 			return false;
 		}
-	},
+	}
 
-	writeResponse: function(response, content) {
+	_writeResponse(response, content) {
 		if (!content) {
 			response.writeHead(204, { 'Content-Type': 'text/plain' });
 			response.write('');
@@ -268,21 +299,21 @@ var server = {
 			response.writeHead(200, { 'Content-Type': 'text/plain' });
 			response.write(content);
 		} else {
-			var json = JSON.stringify(content);
+			const json = JSON.stringify(content);
 			response.writeHead(200, { 'Content-Type': 'application/json' });
 			response.write(json);
 		}
 		response.end();
-	},
+	}
 
-	createLogger: function(logprefix, opts) {
+	_createLogger(logprefix, opts) {
 		// Logs always goes to console
-		var transports = [];
+		let transports = [];
 
 		if (opts.console) transports.push(new winston.transports.Console());
 
 		// Use /logs as default unless specified
-		var path = './logs';
+		const path = './logs';
 		if (!!opts.path) path = opts.path;
 
 		// If we can't find the specified path, try to create it
@@ -310,6 +341,6 @@ var server = {
 
 		return winston.createLogger({ transports: transports });
 	}
-};
+}
 
-module.exports = server;
+module.exports = Server;

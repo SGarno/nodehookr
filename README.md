@@ -268,6 +268,8 @@ Let me know if you have any others
 ### OpenSource software used in NodeHookR
 * [Winston](https://github.com/winstonjs/winston) is a fantastic logger module which allows you to configure multiple transports and formats for all types of logging.
 * [Http-Shutdown](https://github.com/thedillonb/http-shutdown) provides a graceful shutdown to a node server rather than a forced close.
+* [nodemailer](https://nodemailer.com/about/) provides the transport for sending emails.
+* [handlebars](https://handlebarsjs.com/) is the engine for populating templates and is compatible with Mustache templates.
 
 ### Testing software used
 

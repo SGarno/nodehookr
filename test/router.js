@@ -1,16 +1,15 @@
 var chai = require('chai');
 var chaiHttp = require('chai-http');
-var sinon = require('sinon');
-var router = require('../router.js');
+var Router = require('../router.js');
 
-var assert = chai.assert;
 var expect = chai.expect;
 chai.use(chaiHttp);
 
+var router = new Router();
+
 const stub_path = './test/__tests__/';
 const stubs = {
-	good_plugin: stub_path + 'plugins/good-plugin.js',
-	bad_init: stub_path + 'plugins/bad-init.js'
+	good_plugin: stub_path + 'plugins/good-plugin.js'
 };
 
 //=============================================================================
@@ -18,8 +17,10 @@ const stubs = {
 //=============================================================================
 describe('Plugin Registration', function() {
 	beforeEach(() => {
-		router._config = {};
-		router._logger = function() {};
+		router._nodehookr = {
+			config: () => {},
+			logger: () => {}
+		};
 		router._plugins = [];
 		router._routes = [];
 	});
@@ -37,11 +38,6 @@ describe('Plugin Registration', function() {
 	it('Should throw an error if the plugin file is not found', function() {
 		var param = [ { routes: [ { path: 'bad path' } ] } ];
 		expect(() => router._registerPlugins(param)).to.throw(Error, /Plugin file .* not found/);
-	});
-
-	it('Should throw an error if init is not a function', function() {
-		var param = [ { path: stubs.bad_init, routes: [ {} ] } ];
-		expect(() => router._registerPlugins(param)).to.throw(Error, /The property \[init\]/);
 	});
 
 	it('Should not register plugin if routes array does not exist', function() {

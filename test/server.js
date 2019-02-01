@@ -1,58 +1,63 @@
 var chai = require('chai');
 var chaiHttp = require('chai-http');
 var sinon = require('sinon');
-var server = require('../server.js');
+var Server = require('../server.js');
 var proxyquire = require('proxyquire');
 
 var assert = chai.assert;
 var expect = chai.expect;
 chai.use(chaiHttp);
 
+var server;
+
 var url = 'http://localhost:3820';
 const stub_path = './test/__tests__/';
 const stubs = {
 	logs_path: 'logs',
 	good_plugin: stub_path + 'plugins/good-plugin.js',
-	bad_init: stub_path + 'plugins/bad-init.js',
 	config_valid: stub_path + 'configs/test_config.json',
-	config_invalid: stub_path + 'configs/invalid_config.json'
+	invalid_config: stub_path + 'configs/invalid_config.json'
 };
 
 describe('Configuration', function() {
-	before(() => {}),
-		it('Should load default config file', function() {
-			var results = server.config();
-			assert(results.default);
-		});
+	before(() => {
+		server = new Server();
+	});
+
+	it('Should load default config file', function() {
+		const results = server.config;
+		assert(results.default);
+	});
 
 	it('Should throw error message if config file is invalid', function() {
-		server._configFile = stubs.config_invalid;
-		delete server._config;
-		assert.throws(server.config, Error, 'Unexpected token');
+		() => {
+			assert.throws(server.config, Error, 'Unexpected token');
+		};
 	});
 
 	it('Should load test config', function() {
 		server._configFile = stubs.config_valid;
-		delete server._config;
-		var results = server.config();
+		delete server._configData;
+		const results = server.config;
 		assert(results.test);
 	});
 
 	it('Should not reload config file if already loaded', function() {
 		server._configFile = 'test/__tests__/configs/bad_config.json';
-		var results = server.config().pathcheck;
+		const results = server.config.pathcheck;
 		assert(results === 'Valid', 'configuration file not reloaded');
 	});
 });
 
 describe('Server initialization failures', function() {
-	var routerStub = {
+	let routerStub = {
 		createRouter: () => {
 			throw new Error('testing router error');
 		}
 	};
-	var server = proxyquire('../server.js', { './router': routerStub });
-	var logspy = sinon.spy(server, '_servicelog');
+	const ProxyServer = proxyquire('../server.js', { './router': routerStub });
+	const server = new ProxyServer();
+	const logspy = sinon.spy(server, '_servicelog');
 
 	it('Should throw an error if the router throws one and quit', function(done) {
 		expect(() => {
@@ -67,19 +72,20 @@ describe('Server initialization failures', function() {
 	});
 });
 
-describe('Server', function() {
-	before(function() {
+describe('Server', () => {
+	before(() => {
+		server = new Server();
 		server.start(stubs.config_valid);
 	});
 
-	it('Should return 422', function(done) {
-		chai.request(url).get('/badmethod').end(function(err, res) {
+	it('Should return 422', (done) => {
+		chai.request(url).get('/badmethod').end((err, res) => {
 			expect(res).to.have.status(422);
 			done();
 		});
 	});
 
-	it('Should return route 1 static config parameter', function(done) {
+	it('Should return route 1 static config parameter', (done) => {
 		chai.request(url).get('/TestRoute/1').end(function(err, res) {
 			expect(res).to.have.status(200);
 			expect(res).to.be.text;
@@ -88,16 +94,16 @@ describe('Server', function() {
 		});
 	});
 
-	it('Should return route 2 static config parameter', function(done) {
+	it('Should return route 2 static config parameter', (done) => {
 		chai.request(url).get('/Route/2/Test').end(function(err, res) {
-			expect(res).to.have.status(200);
+			assert.equal(res.status, 200);
 			expect(res).to.be.text;
 			assert.equal(res.text, 'Config From Route #2');
 			done();
 		});
 	});
 
-	it('Should call TestFN2 and return a JSON object', function(done) {
+	it('Should call TestFN2 and return a JSON object', (done) => {
 		chai.request(url).post('/TestFN2').end(function(err, res) {
 			expect(res).to.have.status(200);
 			expect(res).to.be.json;
@@ -107,7 +113,7 @@ describe('Server', function() {
 		});
 	});
 
-	it('Should call TestFN2 with body of JSON', function(done) {
+	it('Should call TestFN2 with body of JSON', (done) => {
 		chai
 			.request(url)
 			.post('/TestFN2')

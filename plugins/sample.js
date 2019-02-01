@@ -1,20 +1,20 @@
-var sample = {
-	init: function(config, logger) {
-		sample._config = config;
-		sample._logger = logger;
-		sample._logger('info', 'sample plugin initialized');
-		return sample;
-	},
+class Sample {
+	constructor(nodehookr) {
+		this._config = nodehookr.config;
+		this._logger = nodehookr.logger;
 
-	myFunction1: function(params, payload) {
-		sample._logger('info', 'Got a request for myFunction1', { params: params, payload: payload });
-		return params.configParam;
-	},
-
-	myFunction2: function(params, payload) {
-		sample._logger('info', 'Got a request for myFunction2', { params: params, payload: payload });
-		return sample._config.userdata;
+		this._logger('info', 'sample plugin initialized');
 	}
-};
 
-module.exports = sample;
+	myFunction1(params, payload) {
+		this._logger('info', 'Got a request for myFunction1', { params: params, payload: payload });
+		return params.configParam;
+	}
+
+	myFunction2(params, payload) {
+		this._logger('info', 'Got a request for myFunction2', { params: params, payload: payload });
+		return this._config.userdata;
+	}
+}
+
+module.exports = Sample;

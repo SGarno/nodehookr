@@ -1,3 +1,4 @@
-var server = require('./server.js');
+var Server = require('./server.js');
 
-server.start();
+server = new Server();
+server.start('./test/__tests__/configs/test_config.json');
