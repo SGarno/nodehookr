@@ -35,18 +35,32 @@ class Mailer {
 			opts.html = htmlTemplate(opts.data);
 		}
 
-		// Send the mail
-		this._transport.sendMail(opts, () => {
-			if (error) {
-				throw new Error('Unable to send mail', { options: mailOpts, error: error, response: response });
-			} else {
-				this._logger('info', 'Message sent to: ' + mailOpts.to + ' subject:' + mailOpts.subject);
-			}
+		// Sendmail runs asynchronously (which is what we want), but
+		// the error handling cannot return the information back to
+		// the user when this happens.   It can, however, go to the
+		// log file
+		return new Promise((resolve, reject) => {
+			this._transport.sendMail(opts, (error, data) => {
+				if (error) {
+					reject(error);
+				} else {
+					resolve(data);
+				}
+			});
 		});
 	}
 
-	_loadTemplate(filename) {
-		if (!filename) throw new Error('Email template [' + template + '] not found in configuration.');
+	_loadTemplate(template) {
+		// If the user specified a template, assume it is a path
+		// to a template file
+		let filename = template;
+
+		// Now, check to see if it is a reference to a template in
+		// the config file.   If so, then the template was the name
+		// of the template in the config file.   So use that.
+		const cfg = this._config.mailer.templates;
+		if (cfg && cfg[template] && cfg[template].file) filename = cfg[template].file;
+
 		return fs.readFileSync(filename, 'utf-8');
 	}
 }

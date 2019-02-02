@@ -21,6 +21,7 @@ describe('Plugin Registration', function() {
 			config: () => {},
 			logger: () => {}
 		};
+		router._logger = () => {};
 		router._plugins = [];
 		router._routes = [];
 	});

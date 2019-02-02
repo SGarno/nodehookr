@@ -4,7 +4,7 @@
 	"description": "Node webhook server",
 	"main": "server.js",
 	"scripts": {
-		"start": "node app.js",
+		"start": "node examples/app.js",
 		"test": "rmdir /s /q .\\test\\__tests__\\logs & nyc --reporter=html --reporter=text mocha"
 	},
 	"author": "CarpeDatum Consulting, Inc.",

@@ -14,6 +14,10 @@ const Router = require('./router');
 const Mailer = require('./mailer');
 const autobind = require('auto-bind');
 
+const Errors = require('./errors');
+const AppError = Errors.AppError;
+const RequestError = Errors.RequestError;
+
 require('winston-daily-rotate-file');
 require('http-shutdown').extend();
 
@@ -54,13 +58,13 @@ class Server {
 
 		// Initialize loggers
 		for (let [ log, opts ] of Object.entries(this.config.log)) {
-			try {
-				// Only initialize valid logger entries
-				if (log.match(/^(service|router|plugins|requests)$/)) {
-					if (opts.enabled === undefined || opts.enabled) this._loggers[log] = this._createLogger(log, opts);
-				}
-			} catch (e) {}
+			// Only initialize valid logger entries
+			if (log.match(/\bservice|\brouter|\bplugins|\brequests/)) {
+				if (opts.enabled === undefined || opts.enabled) this._loggers[log] = this._createLogger(log, opts);
+			}
 		}
+
+		this._servicelog('info', 'NodeHookR initializing');
 
 		// Set up the callbacks for the plugins
 		this._hooks = {
@@ -69,53 +73,36 @@ class Server {
 			logger: this._pluginlog.bind(this)
 		};
 
-		// Initialize the router any errors will quit the service
-		try {
-			this._router = new Router(this._hooks, this._routerlog);
-		} catch (e) {
-			const err = new Error('Error occured during router intialization');
-			this._servicelog('error', err.message, e);
-			err.original = e;
-			err.stack = e.stack.split('\n').slice(0, 2).join('\n') + '\n' + e.stack;
-			throw err;
-		}
+		// Initialize the router and mailer.  If any errors
+		// occur during initalization, the service will quit
+		this._router = new Router(this._hooks, this._routerlog, this._handleAppError);
+		this._mailer = new Mailer(this._hooks, this._mailerlog);
 
-		// Initialize the mailer
-		try {
-			this.mailer = new Mailer(this._hooks, this._mailerlog);
-		} catch (e) {
-			const err = new Error('Error occured during mailer intialization');
-			this._servicelog('error', err.message, e);
-			err.original = e;
-			err.stack = e.stack.split('\n').slice(0, 2).join('\n') + '\n' + e.stack;
-			throw err;
-		}
-
+		// Set the default server port
 		const port = this.config.port || '3000';
-		try {
-			// Initialize the http server
-			this._server = http
-				.createServer((req, res) => {
-					// Set CORS headers
-					res.setHeader('Access-Control-Allow-Origin', '*');
-					res.setHeader('Access-Control-Request-Method', '*');
-					res.setHeader('Access-Control-Allow-Methods', 'OPTIONS, GET, POST, PUT, PATCH, DELETE');
-					res.setHeader('Access-Control-Allow-Headers', '*');
 
-					try {
-						this._handleRequest(req, res);
-					} catch (e) {
-						this._handleError(503, 'Unexpected error occured handling request', req, res, e);
-					}
-				})
-				.listen(port)
-				.withShutdown();
-		} catch (e) {
-			this._servicelog('Error', 'Error during server startup', e);
-			return this;
-		}
-		console.log('Server running on port ' + port);
-		this._servicelog('Server running on port ' + port);
+		// Initialize the http server
+		this._server = http
+			.createServer((req, res) => {
+				// Set CORS headers
+				res.setHeader('Access-Control-Allow-Origin', '*');
+				res.setHeader('Access-Control-Request-Method', '*');
+				res.setHeader('Access-Control-Allow-Methods', 'OPTIONS, GET, POST, PUT, PATCH, DELETE');
+				res.setHeader('Access-Control-Allow-Headers', '*');
+
+				try {
+					this._handleRequest(req, res);
+				} catch (err) {
+					if (err.name === 'RequestError') this._handleRequestError(err, req, res);
+					else this._handleAppError(err);
+				}
+			})
+			.listen(port)
+			.withShutdown();
+
+		const msg = 'Server running on port ' + port + '.  Using config [' + this._configFile + ']';
+		console.log(msg);
+		this._servicelog('info', msg);
 
 		return this;
 	}
@@ -124,10 +111,10 @@ class Server {
 	// Shutdown server
 	// -----------------------------------------------------
 	shutdown() {
-		this._servicelog('info', 'Server shutting down...');
+		this._servicelog('info', 'NodeHookR shutting down');
 		if (!this._server) return;
 		this._server.shutdown(() => {
-			this._servicelog('info', 'Server shutdown complete.');
+			this._servicelog('info', 'NodeHookR shutdown complete');
 		});
 
 		return this;
@@ -137,7 +124,9 @@ class Server {
 	// Sendmail
 	// -----------------------------------------------------
 	_sendmail(opts) {
-		mailer.send(opts);
+		this._mailer.send(opts).catch((err) => {
+			this._handleAppError(err);
+		});
 	}
 
 	// -----------------------------------------------------
@@ -170,44 +159,65 @@ class Server {
 				logger.info(message, data);
 				break;
 			case 'warn':
-				logger.info(message, data);
+				logger.warn(message, data);
 				break;
 			case 'error':
-				logger.info(message, data);
+				logger.error(message, data);
 				break;
 		}
 	}
 
 	// -----------------------------------------------------
-	// Handle errors
+	// Application error
+	//
+	// These errors are things that have occured in the
+	// server which are internal and should not be reported
+	// to the user (such as bad plugins, error sending mail,
+	// etc.)
 	// -----------------------------------------------------
-	_handleError(code, msg, request, response, err) {
+	_handleAppError(err) {
+		this._servicelog('error', err.message, err);
+
+		if (this.config.mailer && this.config.mailer.apperrors) {
+			// Omitting the enabled means to still do error notification
+			// only if it is explicitly disabled, do we not send
+			if (this.config.mailer.enabled !== false) {
+				let cfg = this.config.mailer.apperrors;
+				let opts = Object.assign(
+					{
+						text: 'Error:\n\n' + err.message + '\n\nStack Trace:\n\n' + err.stack,
+						subject: (cfg.prefix || '[NodeHookR ERROR] ') + err.message
+					},
+					cfg
+				);
+
+				this._mailer.send(opts).catch((err) => {
+					// Well, if we get an error while handling an error,
+					// all we can do is log it.  Emails are broken
+					this._servicelog('error', err.message, { error: err, stack: err.stack });
+				});
+			}
+		}
+	}
+
+	// -----------------------------------------------------
+	// Request errors
+	//
+	// These errors are reserved for those which the user
+	// should know about, such as invalid routes or
+	// bad parameters being specified.
+	// -----------------------------------------------------
+	_handleRequestError(err, request, response) {
 		const url_parts = url.parse(request.url, true);
 		let payload = '';
 
 		if (!!request.post) payload = request.post.Value;
 
-		this._requestslog('warn', msg, { error: err, client: url_parts, payload: payload });
-		this._servicelog('error', msg, { error: err, client: url_parts });
+		this._requestslog('error', err.message, { error: err, client: url_parts, payload: payload });
 
-		response.writeHead(code, { 'Content-Type': 'text/html' });
-
-		response.write('<h1>');
-		response.write(msg);
-		response.write('</h1>');
-
-		if (!!err) {
-			response.write('<h2>');
-			response.write(err.message || msg);
-			response.write('</h2>');
-			response.write('<pre>');
-			response.write(err.stack || '');
-			response.write('</pre>');
-		}
-
+		response.writeHead(err.code, { 'Content-Type': 'text/plain' });
+		response.write(err.message);
 		response.end();
-
-		//mail.sendError('Warning', msg, { error: err, client: url_parts, payload: payload });
 	}
 
 	// -----------------------------------------------------
@@ -229,12 +239,12 @@ class Server {
 
 		// If we didn't find a matching route, return an error
 		if (!this._router.exists(path)) {
-			return this._handleError(422, 'Invalid or no route supplied', request, response);
+			throw new RequestError(422, 'Invalid or no route supplied');
 		}
 
 		// If the route doesn't match the type, then return an error
 		if (!this._router.matches(request.method, path)) {
-			return this._handleError(405, 'Specified route does not support ' + request.method, request, response);
+			throw new RequestError(405, 'Specified route does not support ' + request.method);
 		}
 
 		this._processRequest(request, response);
@@ -261,24 +271,14 @@ class Server {
 			else payload = queryData;
 
 			const url_parts = url.parse(request.url, true);
-			try {
-				const params = url_parts.query;
+			const params = url_parts.query;
 
-				response.remoteAddress = request.connection.remoteAddress;
-				response.remoteHost = request.headers.host;
-				response.remoteOrigin = request.headers.origin;
-				response.remoteUserAgent = request.headers['user-agent'];
+			response.remoteAddress = request.connection.remoteAddress;
+			response.remoteHost = request.headers.host;
+			response.remoteOrigin = request.headers.origin;
+			response.remoteUserAgent = request.headers['user-agent'];
 
-				this._writeResponse(response, this._router.exec(request.method, url_parts.pathname, params, payload));
-			} catch (e) {
-				return this._handleError(
-					500,
-					'Error occured while processing ' + request.method + ' request for ' + url_parts.pathname,
-					request,
-					response,
-					e
-				);
-			}
+			this._writeResponse(response, this._router.exec(request.method, url_parts.pathname, params, payload));
 		});
 	}
 
@@ -313,8 +313,7 @@ class Server {
 		if (opts.console) transports.push(new winston.transports.Console());
 
 		// Use /logs as default unless specified
-		const path = './logs';
-		if (!!opts.path) path = opts.path;
+		const path = opts.path || './logs';
 
 		// If we can't find the specified path, try to create it
 		if (!fs.existsSync(path)) {

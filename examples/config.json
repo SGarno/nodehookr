@@ -1,13 +1,11 @@
 {
-	"test": true,
-	"pathcheck": "Valid",
-	"port": "3820",
+	"port": "3600",
 
 	"log": {
-		"requests": { "enabled": true, "console": false, "path": "./test/__tests__/logs" },
-		"service": { "enabled": true, "console": false, "path": "./test/__tests__/logs" },
-		"router": { "enabled": true, "path": "./test/__tests__/logs" },
-		"plugins": { "eabled": true, "path": "./test/__tests__/logs" }
+		"requests": { "enabled": true, "console": true },
+		"service": { "enabled": true, "console": true },
+		"router": { "enabled": true, "console": true },
+		"plugins": { "enabled": true }
 	},
 
 	"mailer": {
@@ -16,20 +14,20 @@
 		"port": 587,
 		"debug": false,
 		"auth": {
-			"user": "not real",
-			"pass": "not real"
+			"user": "AppServices@CarpeDatumInc.com",
+			"pass": "%S%a8L9ED=3bqw"
 		},
 		"templates": {
 			"sample": {
-				"sender": "user@mail.com",
-				"file": "./examples/templates/sample-email-template.html",
-				"subject": "NodeHookR Test"
+				"sender": "sgarno@carpedatuminc.com",
+				"htmlTemplate": "./templates/tm1connect_registration.html",
+				"subject": "TM1Connect registration"
 			}
 		},
 		"apperrors": {
-			"to": "user@mail.com",
-			"sender": "sender@mail.com",
-			"prefix": "Eror with my app: "
+			"to": "sgarno@carpedatuminc.com",
+			"sender": "sgarno@carpedatuminc.com",
+			"prefix": "Registration Error: "
 		}
 	},
 
@@ -51,7 +49,7 @@
 					"callback": "myFunction1",
 					"params": { "configParam": "Config From Route #2" }
 				},
-				{ "match": "/sendmail", "method": "get", "callback": "sendmail" }
+				{ "match": "^/sendmail$", "method": "GET", "callback": "sendEmail" }
 			]
 		}
 	],

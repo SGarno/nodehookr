@@ -2,6 +2,7 @@ class Plugin {
 	constructor(nodehookr) {
 		this._config = nodehookr.config;
 		this._logger = nodehookr.logger;
+		this._sendmail = nodehookr._sendmail;
 	}
 
 	fnString(params, payload) {

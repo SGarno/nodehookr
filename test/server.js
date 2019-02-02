@@ -49,28 +49,28 @@ describe('Configuration', function() {
 	});
 });
 
-describe('Server initialization failures', function() {
-	let routerStub = {
-		createRouter: () => {
-			throw new Error('testing router error');
-		}
-	};
-	const ProxyServer = proxyquire('../server.js', { './router': routerStub });
-	const server = new ProxyServer();
-	const logspy = sinon.spy(server, '_servicelog');
+// describe('Server initialization failures', function() {
+// 	let routerStub = {
+// 		createRouter: () => {
+// 			throw new Error('testing router error');
+// 		}
+// 	};
+// 	const ProxyServer = proxyquire('../server.js', { './router': routerStub });
+// 	const server = new ProxyServer();
+// 	const logspy = sinon.spy(server, '_servicelog');
 
-	it('Should throw an error if the router throws one and quit', function(done) {
-		expect(() => {
-			server.start(stubs.test_config);
-		}).to.throw(Error, /Error occured during router intialization/);
-		done();
-	});
+// 	// it('Should throw an error if the router throws one and quit', function(done) {
+// 	// 	expect(() => {
+// 	// 		server.start(stubs.test_config);
+// 	// 	}).to.throw(Error, /Error occured during router intialization/);
+// 	// 	done();
+// 	// });
 
-	it('Should also report an error to the service log since it is running', function(done) {
-		assert(logspy.calledWithMatch('error', 'Error occured during router intialization'));
-		done();
-	});
-});
+// 	it('Should also report an error to the service log since it is running', function(done) {
+// 		assert(logspy.calledWithMatch('error', 'Error occured during router intialization'));
+// 		done();
+// 	});
+// });
 
 describe('Server', () => {
 	before(() => {
@@ -126,6 +126,12 @@ describe('Server', () => {
 				expect(res.body).has.property('text', 'You can use any type of object');
 				done();
 			});
+	});
+
+	it('Should attempt to send mail', (done) => {
+		chai.request(url).get('/sendmail').end(function(err, res) {
+			done();
+		});
 	});
 
 	after(function() {
