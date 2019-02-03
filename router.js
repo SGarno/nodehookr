@@ -117,9 +117,7 @@ class Router {
 		let results;
 		try {
 			results = route._callback(Object.assign(params || {}, route.params || {}), payload);
-			console.log('Results ===========', results);
 			if (results.then && typeof results.then === 'function') {
-				console.log('Results is a promise');
 				results.catch((err) => {
 					this._handleAppError(err);
 				});
