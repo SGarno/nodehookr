@@ -66,6 +66,14 @@ class Server {
 
 		this._servicelog('info', 'NodeHookR initializing');
 
+		// Setup catch-all for async functions in plugins that are not
+		// properly catching the exceptions
+		process.on('unhandledRejection', (err) => {
+			this._handleAppError(
+				new AppError('Unhandled promise rejection.   Plugin may not be properly handling error.', err)
+			);
+		});
+
 		// Set up the callbacks for the plugins
 		this._hooks = {
 			config: this.config,
@@ -182,12 +190,15 @@ class Server {
 			// Omitting the enabled means to still do error notification
 			// only if it is explicitly disabled, do we not send
 			if (this.config.mailer.enabled !== false) {
-				let cfg = this.config.mailer.apperrors;
+				const cfg = this.config.mailer.apperrors;
+				let body = 'Error:\n\n' + err.message + '\n\nStack Trace:\n\n' + err.stack;
+
+				// If there is an inner exception, we want to show it as well.
+				if (err.inner)
+					body += '\n\nInner Error:\n\n' + JSON.stringify(err.inner, null, 2) + '\n\n' + err.inner.stack;
+
 				let opts = Object.assign(
-					{
-						text: 'Error:\n\n' + err.message + '\n\nStack Trace:\n\n' + err.stack,
-						subject: (cfg.prefix || '[NodeHookR ERROR] ') + err.message
-					},
+					{ text: body, subject: (cfg.prefix || '[NodeHookR ERROR] ') + err.message },
 					cfg
 				);
 
