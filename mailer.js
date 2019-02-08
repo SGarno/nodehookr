@@ -9,7 +9,6 @@ class Mailer {
 		this._config = webhookr.config;
 		this._logger = webhookr.logger;
 
-		https.globalAgent.options.secureProtocol = 'SSLv3_method';
 		if (!!this._config.mailer) this._transport = nodemailer.createTransport(this._config.mailer);
 		autobind(this);
 	}
@@ -20,19 +19,26 @@ class Mailer {
 	send(options) {
 		if (!this._transport) return;
 
-		const opts = Object.assign({}, options);
+		// Get the default values from the config file, if html and text
+		// templates are both specified, then
+		let cfgOpts = {};
+		if (!!this._config.mailer.templates) cfgOpts = this._config.mailer.templates[options.template] || {};
+
+		// Merge the config file and parameters passed, where the
+		// parameters passed take precedence over the config
+		const opts = Object.assign({}, cfgOpts, options);
 
 		// Load up the template(s) and populate the message
-		if (!!opts.textTemplate) {
-			const textContent = this._loadTemplate(opts.textTemplate);
+		if (!!opts.textfile) {
+			const textContent = this._loadTemplate(opts.textfile);
 			const textTemplate = handlebars.compile(textContent);
-			opts.text = textTemplate(opts.data);
+			opts.text = textTemplate(opts);
 		}
 
-		if (!!opts.htmlTemplate) {
-			const htmlContent = this._loadTemplate(opts.htmlTemplate);
+		if (!!opts.htmlfile) {
+			const htmlContent = this._loadTemplate(opts.htmlfile);
 			const htmlTemplate = handlebars.compile(htmlContent);
-			opts.html = htmlTemplate(opts.data);
+			opts.html = htmlTemplate(opts);
 		}
 
 		// Sendmail runs asynchronously (which is what we want), but
@@ -50,17 +56,7 @@ class Mailer {
 		});
 	}
 
-	_loadTemplate(template) {
-		// If the user specified a template, assume it is a path
-		// to a template file
-		let filename = template;
-
-		// Now, check to see if it is a reference to a template in
-		// the config file.   If so, then the template was the name
-		// of the template in the config file.   So use that.
-		const cfg = this._config.mailer.templates;
-		if (cfg && cfg[template] && cfg[template].file) filename = cfg[template].file;
-
+	_loadTemplate(filename) {
 		return fs.readFileSync(filename, 'utf-8');
 	}
 }

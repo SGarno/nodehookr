@@ -61,7 +61,9 @@ class Router {
 	add(plugin, route) {
 		if (!fs.existsSync(plugin.path)) throw new AppError('Plugin file [' + plugin.path + '] not found');
 
-		let Plugin = require(plugin.path);
+		// Must use process.cwd in order for plugins to be relative to running
+		// main script.
+		let Plugin = require(process.cwd() + '/' + plugin.path);
 		let instance = new Plugin(this._nodehookr);
 
 		if (!route.match)
@@ -101,7 +103,7 @@ class Router {
 		return this;
 	}
 
-	exec(method, path, params, payload) {
+	async exec(method, path, params, payload) {
 		const route = this.get(method, path);
 
 		if (!route) throw new RequestError(422, 'Route [' + path + '] not found');
@@ -117,14 +119,14 @@ class Router {
 		let results;
 		try {
 			results = route._callback(Object.assign(params || {}, route.params || {}), payload);
+			// If the results is a promise, then we await the promise results
 			if (results.then && typeof results.then === 'function') {
-				results.catch((err) => {
-					this._handleAppError(err);
-				});
+				await results;
 			}
 		} catch (err) {
 			throw new AppError(err.message, err);
 		}
+
 		return results;
 	}
 

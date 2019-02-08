@@ -276,7 +276,7 @@ class Server {
 			}
 		});
 
-		request.on('end', () => {
+		request.on('end', async () => {
 			let payload = '';
 			if (this._isJSON(queryData)) payload = JSON.parse(queryData);
 			else payload = queryData;
@@ -289,7 +289,19 @@ class Server {
 			response.remoteOrigin = request.headers.origin;
 			response.remoteUserAgent = request.headers['user-agent'];
 
-			this._writeResponse(response, this._router.exec(request.method, url_parts.pathname, params, payload));
+			try {
+				let results = await this._router.exec(request.method, url_parts.pathname, params, payload);
+				this._writeResponse(response, results);
+			} catch (err) {
+				if (err.name === 'RequestError') {
+					this._handleRequestError(err, request, response);
+					return;
+				}
+
+				this._handleAppError(err);
+				response.writeHead(500, { 'Content-Type': 'text/plain' });
+				response.end();
+			}
 		});
 	}
 
@@ -305,7 +317,6 @@ class Server {
 	_writeResponse(response, content) {
 		if (!content) {
 			response.writeHead(204, { 'Content-Type': 'text/plain' });
-			response.write('');
 		} else if (typeof content === 'string') {
 			response.writeHead(200, { 'Content-Type': 'text/plain' });
 			response.write(content);
