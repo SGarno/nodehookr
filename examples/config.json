@@ -14,20 +14,20 @@
 		"port": 587,
 		"debug": false,
 		"auth": {
-			"user": "AppServices@CarpeDatumInc.com",
-			"pass": "%S%a8L9ED=3bqw"
+			"user": "Your Username",
+			"pass": "Your Password"
 		},
 		"templates": {
 			"sample": {
-				"sender": "sgarno@carpedatuminc.com",
-				"htmlTemplate": "./templates/tm1connect_registration.html",
-				"subject": "TM1Connect registration"
+				"sender": "sender@mail.com",
+				"file": "./examples/templates/sample-email-template.html",
+				"subject": "NodeHookR Test"
 			}
 		},
 		"apperrors": {
-			"to": "sgarno@carpedatuminc.com",
-			"sender": "sgarno@carpedatuminc.com",
-			"prefix": "Registration Error: "
+			"to": "user@mail.com",
+			"sender": "sender@mail.com",
+			"prefix": "Eror with my app: "
 		}
 	},
 
