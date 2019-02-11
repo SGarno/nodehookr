@@ -21,14 +21,14 @@
 		},
 		"templates": {
 			"sample": {
-				"sender": "user@mail.com",
+				"from": "user@mail.com",
 				"file": "./examples/templates/sample-email-template.html",
 				"subject": "NodeHookR Test"
 			}
 		},
 		"apperrors": {
 			"to": "user@mail.com",
-			"sender": "sender@mail.com",
+			"from": "sender@mail.com",
 			"prefix": "Eror with my app: "
 		}
 	},
